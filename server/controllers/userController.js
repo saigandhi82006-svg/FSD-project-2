@@ -102,10 +102,13 @@ export const uploadAvatar = async (req, res, next) => {
       });
     }
 
-    const relativeUrl = `/uploads/${req.file.filename}`;
+    const imageUrl = req.file.buffer
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+      : `/uploads/${req.file.filename}`;
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { profileImage: relativeUrl },
+      { profileImage: imageUrl },
       { new: true }
     );
 
@@ -113,7 +116,7 @@ export const uploadAvatar = async (req, res, next) => {
       success: true,
       message: 'Profile picture updated successfully!',
       data: {
-        profileImage: relativeUrl,
+        profileImage: imageUrl,
         user
       }
     });

@@ -1,23 +1,7 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 
-// Ensure upload directory exists
-const uploadDir = path.resolve(process.cwd(), 'public', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `avatar-${uniqueSuffix}${ext}`);
-  }
-});
+// Memory storage works in both local development and read-only serverless environments (Vercel)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
@@ -33,3 +17,5 @@ export const uploadAvatar = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter
 });
+
+export default uploadAvatar;

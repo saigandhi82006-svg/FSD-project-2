@@ -4,8 +4,8 @@ dotenv.config();
 import app from '../server/app.js';
 import { connectDB } from '../server/config/db.js';
 
-export default async function handler(req, res) {
-  // Ensure req.url has /api prefix for Express routing if stripped by Vercel rewrites
+// Serverless DB connection & URL normalization middleware
+app.use(async (req, res, next) => {
   if (req.url && !req.url.startsWith('/api')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
@@ -13,8 +13,9 @@ export default async function handler(req, res) {
   try {
     await connectDB();
   } catch (err) {
-    console.error('[Database Connect Error in Serverless Handler]:', err);
+    console.error('[Serverless DB Connect Error]:', err);
   }
+  next();
+});
 
-  return app(req, res);
-}
+export default app;
