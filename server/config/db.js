@@ -2,7 +2,11 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 dotenv.config();
 
-let isConnected = false;
+let cached = global._mongooseConnection;
+if (!cached) {
+  cached = global._mongooseConnection = { conn: null, promise: null };
+}
+
 let connectionError = null;
 
 export const connectDB = async () => {
@@ -13,49 +17,57 @@ export const connectDB = async () => {
     console.error('\n======================================================');
     console.error('⚠️  DATABASE CONFIGURATION WARNING:');
     console.error('   MONGODB_URI environment variable is missing.');
-    console.error('   To configure MongoDB Atlas:');
-    console.error('   1. Create a free cluster at https://www.mongodb.com/cloud/atlas');
-    console.error('   2. Create database user credentials & allow network access (0.0.0.0/0)');
-    console.error('   3. Add MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/alumni_directory?retryWrites=true&w=majority to your .env file');
     console.error('======================================================\n');
     return false;
   }
 
-  // Reuse existing connection if already active (serverless optimization)
+  // Reuse existing connection if already open (serverless optimization)
   if (mongoose.connection.readyState === 1) {
-    isConnected = true;
     connectionError = null;
     return true;
   }
 
+  // If connection is currently in progress, wait for the existing promise to resolve
+  if (cached.promise && mongoose.connection.readyState === 2) {
+    try {
+      await cached.promise;
+      connectionError = null;
+      return mongoose.connection.readyState === 1;
+    } catch {
+      cached.promise = null;
+    }
+  }
+
   try {
-    const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 8000,
+    cached.promise = mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 10000,
       connectTimeoutMS: 10000,
     });
-    isConnected = true;
+
+    const conn = await cached.promise;
+    cached.conn = conn;
     connectionError = null;
     console.log(`✅ MongoDB Connected Successfully: ${conn.connection.host} / ${conn.connection.name}`);
     return true;
   } catch (error) {
-    isConnected = false;
+    cached.promise = null;
+    cached.conn = null;
     connectionError = error.message;
     console.error('\n======================================================');
     console.error('❌ MONGODB CONNECTION FAILED:');
     console.error(`   Error: ${error.message}`);
-    console.error('   Actionable Steps:');
-    console.error('   1. Verify your network/IP whitelist in MongoDB Atlas Security settings.');
-    console.error('   2. Verify username, password, and cluster address in MONGODB_URI.');
-    console.error('   3. If using local MongoDB, ensure "mongod" service is running.');
     console.error('======================================================\n');
     return false;
   }
 };
 
 export const getDbStatus = () => {
+  const readyState = mongoose.connection.readyState;
+  // readyState 1 = connected, 2 = connecting
+  const isHealthy = readyState === 1 || readyState === 2;
   return {
-    connected: isConnected && mongoose.connection.readyState === 1,
-    readyState: mongoose.connection.readyState,
+    connected: isHealthy,
+    readyState,
     error: connectionError,
     host: mongoose.connection.host || null,
     name: mongoose.connection.name || null

@@ -33,20 +33,40 @@ export function App() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
-    api.get('/health')
-      .then((res) => {
-        if (res.database) {
-          setDbStatus({
-            checked: true,
-            connected: res.database.connected,
-            host: res.database.host,
-            error: res.database.error
-          });
-        }
-      })
-      .catch(() => {
-        setDbStatus({ checked: true, connected: false, error: 'Could not reach backend health check' });
-      });
+    let timer;
+    const checkDbHealth = (retries = 0) => {
+      api.get('/health')
+        .then((res) => {
+          if (res?.database) {
+            if (res.database.connected) {
+              setDbStatus({
+                checked: true,
+                connected: true,
+                host: res.database.host
+              });
+            } else if (retries < 3) {
+              timer = setTimeout(() => checkDbHealth(retries + 1), 1200);
+            } else {
+              setDbStatus({
+                checked: true,
+                connected: false,
+                host: res.database.host,
+                error: res.database.error
+              });
+            }
+          }
+        })
+        .catch(() => {
+          if (retries < 2) {
+            timer = setTimeout(() => checkDbHealth(retries + 1), 1500);
+          } else {
+            setDbStatus({ checked: true, connected: false, error: 'Could not reach backend health check' });
+          }
+        });
+    };
+
+    checkDbHealth();
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -69,12 +89,12 @@ export function App() {
             }}
           />
 
-          {dbStatus.checked && !dbStatus.connected && !bannerDismissed && (
+          {import.meta.env.DEV && dbStatus.checked && !dbStatus.connected && !bannerDismissed && (
             <div className="bg-amber-500 text-slate-900 px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2 max-w-5xl mx-auto">
                 <AlertCircle className="w-4 h-4 shrink-0 text-slate-950" />
                 <span>
-                  <strong>Database Setup Required:</strong> MongoDB is disconnected. Set your MongoDB Atlas cluster URI in <code className="bg-amber-600/30 px-1.5 py-0.5 rounded font-mono text-[11px]">.env</code> and run <code className="bg-amber-600/30 px-1.5 py-0.5 rounded font-mono text-[11px]">npm run seed</code> to populate data.
+                  <strong>Local Database Alert:</strong> MongoDB is disconnected. Check your MONGODB_URI in <code className="bg-amber-600/30 px-1.5 py-0.5 rounded font-mono text-[11px]">.env</code>.
                 </span>
               </div>
               <button

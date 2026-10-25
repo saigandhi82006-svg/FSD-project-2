@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { GraduationCap, Mail, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
-import DemoCredentialsBanner from '../components/DemoCredentialsBanner';
 import toast from 'react-hot-toast';
 
 export const LoginPage = () => {

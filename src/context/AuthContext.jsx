@@ -27,10 +27,14 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (err) {
-        console.warn('Session verification failed:', err.message);
-        localStorage.removeItem('alumni_token');
-        localStorage.removeItem('alumni_user');
-        setUser(null);
+        if (err.status === 401) {
+          console.warn('Session expired:', err.message);
+          localStorage.removeItem('alumni_token');
+          localStorage.removeItem('alumni_user');
+          setUser(null);
+        } else {
+          console.warn('Serverless cold start / network issue during auth verification, preserving local session:', err.message);
+        }
       } finally {
         setLoading(false);
       }
