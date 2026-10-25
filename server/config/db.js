@@ -21,6 +21,13 @@ export const connectDB = async () => {
     return false;
   }
 
+  // Reuse existing connection if already active (serverless optimization)
+  if (mongoose.connection.readyState === 1) {
+    isConnected = true;
+    connectionError = null;
+    return true;
+  }
+
   try {
     const conn = await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 8000,
