@@ -15,7 +15,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { getDbStatus } from './config/db.js';
+import { connectDB, getDbStatus } from './config/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,7 +61,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'public', 'uploads')));
 
 // Health & Database status endpoint
-app.get(['/api/health', '/health'], (req, res) => {
+app.get(['/api/health', '/health'], async (req, res) => {
+  await connectDB();
   const dbStatus = getDbStatus();
   res.status(200).json({
     success: true,
@@ -73,21 +74,22 @@ app.get(['/api/health', '/health'], (req, res) => {
 });
 
 // Database availability check for API endpoints
-app.use(['/api', '/'], (req, res, next) => {
+app.use(['/api', '/'], async (req, res, next) => {
   // Allow health endpoint
   if (req.path === '/health' || req.path === '/api/health') return next();
 
+  await connectDB();
   const dbStatus = getDbStatus();
   if (!dbStatus.connected) {
     return res.status(503).json({
       success: false,
-      error: 'MongoDB database is not connected. Please configure MONGODB_URI in your .env file.',
+      error: dbStatus.error || 'MongoDB database is not connected. Please configure MONGODB_URI in your .env file.',
       code: 'DB_DISCONNECTED',
       actionableSteps: [
         '1. Create a free cluster at https://www.mongodb.com/cloud/atlas',
         '2. Add IP 0.0.0.0/0 to Atlas Network Access',
-        '3. Configure MONGODB_URI=mongodb+srv://... in your .env file',
-        '4. Run "npm run seed" to populate sample data'
+        '3. Configure MONGODB_URI in your Vercel Environment Variables',
+        '4. Redeploy the application'
       ]
     });
   }
