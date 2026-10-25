@@ -61,7 +61,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'public', 'uploads')));
 
 // Health & Database status endpoint
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   const dbStatus = getDbStatus();
   res.status(200).json({
     success: true,
@@ -73,9 +73,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Database availability check for API endpoints
-app.use('/api', (req, res, next) => {
+app.use(['/api', '/'], (req, res, next) => {
   // Allow health endpoint
-  if (req.path === '/health') return next();
+  if (req.path === '/health' || req.path === '/api/health') return next();
 
   const dbStatus = getDbStatus();
   if (!dbStatus.connected) {
